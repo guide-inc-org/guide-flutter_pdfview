@@ -208,7 +208,14 @@
 - (void)PDFViewWillClickOnLink:(PDFView *)sender
                        withURL:(NSURL *)url{
     if (!_preventLinkNavigation){
-        [[UIApplication sharedApplication] openURL:url];
+        NSDictionary *options = @{};
+        [[UIApplication sharedApplication] openURL:url options:options completionHandler:^(BOOL success) {
+            if (success) {
+                NSLog(@"URL opened successfully");
+            } else {
+                NSLog(@"Failed to open URL");
+            }
+        } ];
     }
     [_channel invokeMethod:@"onLinkHandler" arguments:url.absoluteString];
 }
