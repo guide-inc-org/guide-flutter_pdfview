@@ -12,6 +12,7 @@ typedef PageChangedCallback = void Function(int? page, int? total);
 typedef ErrorCallback = void Function(dynamic error);
 typedef PageErrorCallback = void Function(int? page, dynamic error);
 typedef LinkHandlerCallback = void Function(String? uri);
+typedef ReachedEndCallback = void Function();
 
 enum FitPolicy { WIDTH, HEIGHT, BOTH }
 
@@ -26,6 +27,7 @@ class PDFView extends StatefulWidget {
     this.onError,
     this.onPageError,
     this.onLinkHandler,
+  this.onReachEnd,
     this.gestureRecognizers,
     this.enableSwipe = true,
     this.swipeHorizontal = false,
@@ -63,6 +65,10 @@ class PDFView extends StatefulWidget {
 
   /// Used with preventLinkNavigation=true. It's helpful to customize link navigation
   final LinkHandlerCallback? onLinkHandler;
+
+  /// Invoked once when the user scrolls to the end of the document.
+  /// Fires again if the user navigates away from the last page and reaches the end later.
+  final ReachedEndCallback? onReachEnd;
 
   /// Which gestures should be consumed by the pdf view.
   ///
@@ -352,6 +358,12 @@ class PDFViewController {
         return null;
       case 'onLinkHandler':
         widget.onLinkHandler?.call(call.arguments);
+        return null;
+      case 'onReachEnd':
+        if (_widget.onReachEnd != null) {
+          _widget.onReachEnd!();
+        }
+
         return null;
     }
     throw MissingPluginException(

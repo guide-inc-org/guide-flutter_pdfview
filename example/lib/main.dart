@@ -195,16 +195,17 @@ class _PDFScreenState extends State<PDFScreen> with WidgetsBindingObserver {
         children: <Widget>[
           PDFView(
             filePath: widget.path,
-            enableSwipe: true,
-            swipeHorizontal: true,
-            autoSpacing: false,
-            pageFling: true,
-            pageSnap: true,
-            defaultPage: currentPage!,
-            fitPolicy: FitPolicy.BOTH,
-            preventLinkNavigation:
-                false, // if set to true the link is handled in flutter
-            backgroundColor: Color(0xFFFEF7FF),
+            pageFling: false,
+            pageSnap: false,
+            useHybridComposition: Platform.isAndroid,
+            autoSpacing: Platform.isIOS,
+            preventLinkNavigation: true,
+            onReachEnd: () {
+              print('Reached end of document');
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Reached end of document')),
+              );
+            },
             onRender: (_pages) {
               setState(() {
                 pages = _pages;
