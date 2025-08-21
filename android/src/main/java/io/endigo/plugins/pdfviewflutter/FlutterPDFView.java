@@ -28,6 +28,9 @@ public class FlutterPDFView implements PlatformView, MethodCallHandler {
     private final PDFView pdfView;
     private final MethodChannel methodChannel;
     private final LinkHandler linkHandler;
+    private int totalPages = 0;
+    private boolean reachedEndSent = false;
+    private boolean swipeHorizontal = false;
 
     @SuppressWarnings("unchecked")
     FlutterPDFView(Context context, BinaryMessenger messenger, int id, Map<String, Object> params) {
@@ -40,6 +43,7 @@ public class FlutterPDFView implements PlatformView, MethodCallHandler {
         linkHandler = new PDFLinkHandler(context, pdfView, methodChannel, preventLinkNavigation);
 
         Configurator config = null;
+        swipeHorizontal = getBoolean(params, "swipeHorizontal");
         if (params.get("filePath") != null) {
             String filePath = (String) params.get("filePath");
             config = pdfView.fromUri(getURI(filePath));
@@ -77,6 +81,11 @@ public class FlutterPDFView implements PlatformView, MethodCallHandler {
                             args.put("page", page);
                             args.put("total", total);
                             methodChannel.invokeMethod("onPageChanged", args);
+                            totalPages = total;
+                            // Reset the end flag when navigating away from the last page
+                            if (page < total - 1 && reachedEndSent) {
+                                reachedEndSent = false;
+                            }
                         }
                     })
                     .onError(new OnErrorListener() {
@@ -101,7 +110,51 @@ public class FlutterPDFView implements PlatformView, MethodCallHandler {
                             args.put("pages", pages);
                             methodChannel.invokeMethod("onRender", args);
                         }
-                    })
+                    }).onPageScroll(new OnPageScrollListener() {
+                        @Override
+                        public void onPageScrolled(int page, float positionOffset) {
+                            // When on the last page and cannot scroll further in the primary direction, it's the end
+                            if (totalPages > 0 && page == totalPages - 1) {
+                                boolean atEnd;
+                                if (swipeHorizontal) {
+                                    atEnd = !pdfView.canScrollHorizontally(1);
+                                } else {
+                                    atEnd = !pdfView.canScrollVertically(1);
+                                }
+
+                                if (atEnd && !reachedEndSent) {
+                                    reachedEndSent = true;
+                                    methodChannel.invokeMethod("onReachEnd", null);
+                                } else if (!atEnd && reachedEndSent) {
+                                    // Allow firing again if the user scrolls away and back
+                                    reachedEndSent = false;
+                                }
+                            }
+                        }
+                    }).onError(new OnErrorListener() {
+                        @Override
+                        public void onError(Throwable t) {
+                            Map<String, Object> args = new HashMap<>();
+                            args.put("error", t.toString());
+                            methodChannel.invokeMethod("onError", args);
+                        }
+                    }).onPageError(new OnPageErrorListener() {
+                        @Override
+                        public void onPageError(int page, Throwable t) {
+                            Map<String, Object> args = new HashMap<>();
+                            args.put("page", page);
+                            args.put("error", t.toString());
+                            methodChannel.invokeMethod("onPageError", args);
+                        }
+                    }).onRender(new OnRenderListener() {
+                        @Override
+                        public void onInitiallyRendered(int pages) {
+                            Map<String, Object> args = new HashMap<>();
+                            args.put("pages", pages);
+                            methodChannel.invokeMethod("onRender", args);
+                            totalPages = pages;
+                        }
+                    }).enableDoubletap(true).defaultPage(getInt(params, "defaultPage"))
                     .load();
         }
     }

@@ -105,6 +105,8 @@
     BOOL _defaultPageSet;
     BOOL _isIPad;
     BOOL _isScrolling;
+    BOOL _reachedEndSent;
+    UIScrollView* _scrollView;
 }
 
 - (instancetype)initWithFrame:(CGRect)frame
@@ -209,6 +211,7 @@
                 }
 
                 if (scrollView != nil) {
+                    _scrollView = scrollView;
                     // On iPad, use more conservative scroll configuration
                     if (self->_isIPad) {
                         // Allow system to manage insets on iPad for better compatibility
@@ -225,6 +228,8 @@
                             scrollView.automaticallyAdjustsScrollIndicatorInsets = NO;
                         }
                     }
+                    // Observe scroll to detect reaching the bottom of the last page
+                    [scrollView addObserver:self forKeyPath:@"contentOffset" options:NSKeyValueObservingOptionNew context:nil];
 
                     // Ensure scroll view recognizes gestures properly
                     scrollView.delaysContentTouches = YES;
@@ -240,6 +245,17 @@
     [self addSubview:_pdfView];
         
     return self;
+}
+
+- (void)dealloc {
+    @try {
+        if (_scrollView) {
+            [_scrollView removeObserver:self forKeyPath:@"contentOffset"];
+        }
+    } @catch (NSException *exception) {
+        // ignore double-remove
+    }
+    [[NSNotificationCenter defaultCenter] removeObserver:self];
 }
 
 - (void)layoutSubviews {
@@ -297,6 +313,65 @@
 
 -(void)handlePageChanged:(NSNotification*)notification {
     [_controller invokeChannelMethod:@"onPageChanged" arguments:@{@"page" : [NSNumber numberWithUnsignedLong: [_pdfView.document indexForPage: _pdfView.currentPage]], @"total" : [NSNumber numberWithUnsignedLong: [_pdfView.document pageCount]]}];
+    // Reset flag when leaving last page, actual end detection handled by scroll observer
+    NSUInteger currentPageIndex = [_pdfView.document indexForPage:_pdfView.currentPage];
+    NSUInteger totalPages = [_pdfView.document pageCount];
+    if (currentPageIndex < totalPages - 1) {
+        _reachedEndSent = NO;
+        return;
+    }
+
+    // If we just entered the last page, also evaluate immediately whether we're already at the bottom
+    if (currentPageIndex == totalPages - 1 && _scrollView != nil) {
+        BOOL isHorizontal = (_pdfView.displayDirection == kPDFDisplayDirectionHorizontal);
+        BOOL atEnd = NO;
+        if (isHorizontal) {
+            CGFloat rightEdge = _scrollView.contentOffset.x + _scrollView.bounds.size.width - _scrollView.adjustedContentInset.right;
+            atEnd = rightEdge >= (_scrollView.contentSize.width - 0.5);
+        } else {
+            CGFloat bottomEdge = _scrollView.contentOffset.y + _scrollView.bounds.size.height - _scrollView.adjustedContentInset.bottom;
+            atEnd = bottomEdge >= (_scrollView.contentSize.height - 0.5);
+        }
+        if (atEnd && !_reachedEndSent) {
+            _reachedEndSent = YES;
+            [_controller invokeChannelMethod:@"onReachEnd" arguments:@{}];
+        }
+    }
+}
+
+- (void)observeValueForKeyPath:(NSString *)keyPath
+                      ofObject:(id)object
+                        change:(NSDictionary<NSKeyValueChangeKey,id> *)change
+                       context:(void *)context {
+    if (object == _scrollView && [keyPath isEqualToString:@"contentOffset"]) {
+        // Only consider when on the last page
+        NSUInteger currentPageIndex = [_pdfView.document indexForPage:_pdfView.currentPage];
+        NSUInteger totalPages = [_pdfView.document pageCount];
+        if (totalPages == 0 || currentPageIndex != totalPages - 1) {
+            _reachedEndSent = NO;
+            return;
+        }
+
+        // Compute if scrolled to bottom (vertical) or rightmost (horizontal)
+        BOOL isHorizontal = (_pdfView.displayDirection == kPDFDisplayDirectionHorizontal);
+        BOOL atEnd = NO;
+        if (isHorizontal) {
+            CGFloat rightEdge = _scrollView.contentOffset.x + _scrollView.bounds.size.width - _scrollView.adjustedContentInset.right;
+            atEnd = rightEdge >= (_scrollView.contentSize.width - 0.5); // tolerance
+        } else {
+            CGFloat bottomEdge = _scrollView.contentOffset.y + _scrollView.bounds.size.height - _scrollView.adjustedContentInset.bottom;
+            atEnd = bottomEdge >= (_scrollView.contentSize.height - 0.5);
+        }
+
+        if (atEnd && !_reachedEndSent) {
+            _reachedEndSent = YES;
+            [_controller invokeChannelMethod:@"onReachEnd" arguments:@{}];
+        } else if (!atEnd && _reachedEndSent) {
+            _reachedEndSent = NO;
+        }
+    } else {
+        [super observeValueForKeyPath:keyPath ofObject:object change:change context:context];
+    }
 }
 
 -(void)handleRenderCompleted: (NSNumber*)pages {
