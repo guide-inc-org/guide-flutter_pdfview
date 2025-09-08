@@ -27,7 +27,7 @@ class PDFView extends StatefulWidget {
     this.onError,
     this.onPageError,
     this.onLinkHandler,
-  this.onReachEnd,
+    this.onReachEnd,
     this.gestureRecognizers,
     this.enableSwipe = true,
     this.swipeHorizontal = false,
@@ -360,10 +360,7 @@ class PDFViewController {
         widget.onLinkHandler?.call(call.arguments);
         return null;
       case 'onReachEnd':
-        if (_widget.onReachEnd != null) {
-          _widget.onReachEnd!();
-        }
-
+        widget.onReachEnd?.call();
         return null;
     }
     throw MissingPluginException(
