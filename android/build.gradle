@@ -62,6 +62,6 @@ android {
 }
 
 dependencies {
-    implementation 'io.github.oothp:android-pdf-viewer:3.2.0-beta05'
+    implementation 'io.github.oothp:android-pdf-viewer:3.2.0-beta06'
 }
 

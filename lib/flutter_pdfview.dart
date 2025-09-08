@@ -360,10 +360,7 @@ class PDFViewController {
         widget.onLinkHandler?.call(call.arguments);
         return null;
       case 'onReachEnd':
-        if (_widget.onReachEnd != null) {
-          _widget.onReachEnd!();
-        }
-
+        widget.onReachEnd?.call();
         return null;
     }
     throw MissingPluginException(
