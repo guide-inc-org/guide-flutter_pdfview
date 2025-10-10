@@ -228,6 +228,8 @@
                             scrollView.automaticallyAdjustsScrollIndicatorInsets = NO;
                         }
                     }
+                    scrollView.indicatorStyle = UIScrollViewIndicatorStyleBlack;
+
                     // Observe scroll to detect reaching the bottom of the last page
                     [scrollView addObserver:self forKeyPath:@"contentOffset" options:NSKeyValueObservingOptionNew context:nil];
 

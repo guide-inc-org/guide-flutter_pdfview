@@ -35,6 +35,7 @@ public class FlutterPDFView implements PlatformView, MethodCallHandler {
     @SuppressWarnings("unchecked")
     FlutterPDFView(Context context, BinaryMessenger messenger, int id, Map<String, Object> params) {
         pdfView = new PDFView(context, null);
+
         final boolean preventLinkNavigation = getBoolean(params, "preventLinkNavigation");
 
         methodChannel = new MethodChannel(messenger, "plugins.endigo.io/pdfview_" + id);
@@ -72,6 +73,7 @@ public class FlutterPDFView implements PlatformView, MethodCallHandler {
                     .linkHandler(linkHandler)
                     .enableAntialiasing(false)
                     .enableDoubletap(true)
+                    .scrollHandle(new CustomScrollbar(context))
                     // .fitEachPage(getBoolean(params,"fitEachPage"))
                     .defaultPage(getInt(params, "defaultPage"))
                     .onPageChange(new OnPageChangeListener() {
