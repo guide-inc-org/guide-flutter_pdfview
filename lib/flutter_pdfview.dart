@@ -336,6 +336,12 @@ class PDFViewController {
     return isSet;
   }
 
+  Future<void> setUserInteractionEnabled(bool enabled) async {
+    await _channel.invokeMethod('setUserInteractionEnabled', <String, dynamic>{
+      'enabled': enabled,
+    });
+  }
+
   Future<void> _updateWidget(PDFView widget) async {
     _widget = widget;
     await _updateSettings(_PDFViewSettings.fromWidget(widget));

@@ -170,6 +170,10 @@
         [self setPage:call result:result];
     } else if ([[call method] isEqualToString:@"updateSettings"]) {
         [self onUpdateSettings:call result:result];
+    } else if ([[call method] isEqualToString:@"setUserInteractionEnabled"]) {
+        BOOL enabled = [call.arguments[@"enabled"] boolValue];
+        _pdfView.userInteractionEnabled = enabled;
+        result(nil);
     } else {
         result(FlutterMethodNotImplemented);
     }
